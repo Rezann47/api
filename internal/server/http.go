@@ -78,8 +78,16 @@ func (s *HTTPServer) Run() error {
 	})
 
 	// ── Server ───────────────────────────
+	// ── Server ───────────────────────────
+
+	// Render için PORT override
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = cfg.App.Port
+	}
+
 	srv := &http.Server{
-		Addr:         ":" + cfg.App.Port,
+		Addr:         ":" + port,
 		Handler:      r,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
@@ -87,12 +95,11 @@ func (s *HTTPServer) Run() error {
 	}
 
 	go func() {
-		log.Printf("🚀 Server running on :%s\n", cfg.App.Port)
+		log.Printf("🚀 Server running on :%s\n", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
 	}()
-
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
