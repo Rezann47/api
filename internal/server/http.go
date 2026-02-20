@@ -33,7 +33,7 @@ func (s *HTTPServer) Run() error {
 	// ── Database ─────────────────────────
 	db := config.NewDB(cfg)
 
-	if err := db.AutoMigrate(&model.User{}, &model.Product{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Product{}, &model.Car{}); err != nil {
 		return err
 	}
 	log.Println("✅ Migration tamamlandı")
