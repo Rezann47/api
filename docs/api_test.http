@@ -1,0 +1,110 @@
+### Go Gin CRUD — API Test Örnekleri
+### VS Code REST Client veya curl ile kullanılabilir
+
+@baseUrl = http://localhost:8080/api/v1
+@token = BURAYA_TOKEN_YAPISTIR
+
+# ─────────────────────────────────────────
+# 1. HEALTH CHECK
+# ─────────────────────────────────────────
+GET http://localhost:8080/health
+
+###
+
+# ─────────────────────────────────────────
+# 2. KAYIT OL
+# ─────────────────────────────────────────
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Ali Veli",
+  "email": "ali@example.com",
+  "password": "sifre123",
+  "role": "user"
+}
+
+###
+
+# ─────────────────────────────────────────
+# 3. GİRİŞ YAP → token al
+# ─────────────────────────────────────────
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ali@example.com",
+  "password": "sifre123"
+}
+
+###
+
+# ─────────────────────────────────────────
+# 4. KENDİ PROFİLİM
+# ─────────────────────────────────────────
+GET {{baseUrl}}/me
+Authorization: Bearer {{token}}
+
+###
+
+# ─────────────────────────────────────────
+# 5. ÜRÜN OLUŞTUR
+# ─────────────────────────────────────────
+POST {{baseUrl}}/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Laptop Pro",
+  "description": "16GB RAM, 512GB SSD",
+  "price": 45999.99,
+  "stock": 25
+}
+
+###
+
+# ─────────────────────────────────────────
+# 6. ÜRÜNLERİ LİSTELE (sayfalama + arama)
+# ─────────────────────────────────────────
+GET {{baseUrl}}/products?page=1&limit=5&search=laptop&sort=price&order=asc
+Authorization: Bearer {{token}}
+
+###
+
+# ─────────────────────────────────────────
+# 7. TEK ÜRÜN GETİR
+# ─────────────────────────────────────────
+GET {{baseUrl}}/products/1
+Authorization: Bearer {{token}}
+
+###
+
+# ─────────────────────────────────────────
+# 8. ÜRÜN GÜNCELLE
+# ─────────────────────────────────────────
+PUT {{baseUrl}}/products/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "price": 42999.99,
+  "stock": 30
+}
+
+###
+
+# ─────────────────────────────────────────
+# 9. ÜRÜN SİL
+# ─────────────────────────────────────────
+DELETE {{baseUrl}}/products/1
+Authorization: Bearer {{token}}
+
+###
+
+# ─────────────────────────────────────────
+# 10. KULLANICILARI LİSTELE (sadece admin)
+# ─────────────────────────────────────────
+GET {{baseUrl}}/users?page=1&limit=10
+Authorization: Bearer {{token}}
+
+###
