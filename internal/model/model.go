@@ -32,7 +32,7 @@ type Product struct {
 	Description string         `gorm:"type:text"                        json:"description"`
 	Price       float64        `gorm:"type:decimal(10,2);not null"      json:"price"`
 	Stock       int            `gorm:"default:0"                        json:"stock"`
-	UserID      uint           `gorm:"not null;index"                   json:"user_id"`  // Foreign key
+	UserID      uint           `gorm:"not null;index"                   json:"user_id"`        // Foreign key
 	User        User           `gorm:"foreignKey:UserID"                json:"user,omitempty"` // Belongs to
 	CreatedAt   time.Time      `                                        json:"created_at"`
 	UpdatedAt   time.Time      `                                        json:"updated_at"`
@@ -41,4 +41,15 @@ type Product struct {
 
 func (Product) TableName() string {
 	return "products"
+}
+
+type Car struct {
+	ID    uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	Make  string `gorm:"type:varchar(100);not null" json:"make"`
+	Model string `gorm:"type:varchar(100);not null" json:"model"`
+	Year  int    `gorm:"not null" json:"year"`
+}
+
+func (Car) TableName() string {
+	return "cars"
 }

@@ -31,6 +31,7 @@ func NewDB(cfg *Config) *gorm.DB {
 		},
 	})
 	if err != nil {
+
 		log.Fatalf("❌ Veritabanına bağlanılamadı: %v", err)
 	}
 
