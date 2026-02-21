@@ -17,11 +17,12 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Env  string // development | staging | production
+	Env  string
 	Name string
 }
 
 type DBConfig struct {
+	URL      string // DATABASE_URL varsa direkt kullanılır
 	Host     string
 	Port     int
 	User     string
@@ -33,8 +34,11 @@ type DBConfig struct {
 	MaxLife  time.Duration
 }
 
-// DSN postgres bağlantı stringi
+// DSN önce DATABASE_URL'e bakar, yoksa parçalardan oluşturur
 func (d DBConfig) DSN() string {
+	if d.URL != "" {
+		return d.URL
+	}
 	return fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s TimeZone=Europe/Istanbul",
 		d.Host, d.Port, d.User, d.Password, d.Name, d.SSLMode,
@@ -43,6 +47,9 @@ func (d DBConfig) DSN() string {
 
 // MigrateDSN golang-migrate için URL formatı
 func (d DBConfig) MigrateDSN() string {
+	if d.URL != "" {
+		return d.URL
+	}
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		d.User, d.Password, d.Host, d.Port, d.Name, d.SSLMode,
@@ -64,7 +71,7 @@ type ServerConfig struct {
 }
 
 func Load() (*Config, error) {
-	_ = godotenv.Load() // .env yoksa env var'ları kullan, hata verme
+	_ = godotenv.Load()
 
 	cfg := &Config{
 		App: AppConfig{
@@ -72,10 +79,11 @@ func Load() (*Config, error) {
 			Name: getEnv("APP_NAME", "yks-tracker"),
 		},
 		DB: DBConfig{
+			URL:      getEnv("DATABASE_URL", ""),
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnvInt("DB_PORT", 5432),
 			User:     getEnv("DB_USER", "postgres"),
-			Password: mustEnv("DB_PASSWORD"),
+			Password: getEnv("DB_PASSWORD", ""),
 			Name:     getEnv("DB_NAME", "yks_tracker"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 			MaxOpen:  getEnvInt("DB_MAX_OPEN_CONNS", 25),
@@ -95,6 +103,12 @@ func Load() (*Config, error) {
 			IdleTimeout:  getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second),
 		},
 	}
+
+	// DATABASE_URL yoksa DB_PASSWORD zorunlu
+	if cfg.DB.URL == "" && cfg.DB.Password == "" {
+		panic("DATABASE_URL veya DB_PASSWORD set edilmeli")
+	}
+
 	return cfg, nil
 }
 
