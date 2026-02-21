@@ -97,7 +97,7 @@ func Load() (*Config, error) {
 			RefreshExpiry: getEnvDuration("JWT_REFRESH_EXPIRY", 7*24*time.Hour),
 		},
 		Server: ServerConfig{
-			Port:         getEnv("SERVER_PORT", "8080"),
+			Port:         getEnv("PORT", "8080"),
 			ReadTimeout:  getEnvDuration("SERVER_READ_TIMEOUT", 10*time.Second),
 			WriteTimeout: getEnvDuration("SERVER_WRITE_TIMEOUT", 10*time.Second),
 			IdleTimeout:  getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second),
