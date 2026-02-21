@@ -69,7 +69,7 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterReq) (*dto.L
 		return nil, err
 	}
 
-	return s.buildLoginRes(ctx, user, "", "")
+	return s.buildLoginRes(ctx, user, nil, nil)
 }
 
 func (s *authService) Login(ctx context.Context, req dto.LoginReq, userAgent, ip string) (*dto.LoginRes, error) {
@@ -87,7 +87,7 @@ func (s *authService) Login(ctx context.Context, req dto.LoginReq, userAgent, ip
 		return nil, apperror.NewUnauthorized("e-posta veya şifre hatalı")
 	}
 
-	return s.buildLoginRes(ctx, user, userAgent, ip)
+	return s.buildLoginRes(ctx, user, &userAgent, &ip)
 }
 
 func (s *authService) Refresh(ctx context.Context, rawToken string) (*dto.TokenRes, error) {
@@ -126,8 +126,8 @@ func (s *authService) LogoutAll(ctx context.Context, userID uuid.UUID) error {
 
 // ─── helpers ──────────────────────────────────────────────
 
-func (s *authService) buildLoginRes(ctx context.Context, user *entity.User, userAgent, ip string) (*dto.LoginRes, error) {
-	tokens, err := s.issueTokens(ctx, user, &userAgent, &ip)
+func (s *authService) buildLoginRes(ctx context.Context, user *entity.User, userAgent, ip *string) (*dto.LoginRes, error) {
+	tokens, err := s.issueTokens(ctx, user, userAgent, ip)
 	if err != nil {
 		return nil, err
 	}
