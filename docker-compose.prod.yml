@@ -1,0 +1,32 @@
+version: "3.9"
+
+# ════════════════════════════════════════════════════════
+#  Production override — base compose ile birleştir:
+#  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ════════════════════════════════════════════════════════
+
+services:
+  db:
+    ports: []                             # Production'da DB portu dışarıya açılmaz
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  api:
+    restart: always
+    deploy:
+      replicas: 2                         # Swarm / Compose v2 replicas
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256m
+        reservations:
+          memory: 128m
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    environment:
+      APP_ENV: production
+      GIN_MODE: release

@@ -1,33 +1,72 @@
-# ── Build Stage ──────────────────────────────────────────────
-FROM golang:1.21-alpine AS builder
+# ════════════════════════════════════════════════════════
+#  YKS Tracker — Multi-stage Dockerfile
+#  Hedefler:
+#    docker build --target dev   -t yks-tracker:dev .   (hot-reload)
+#    docker build --target prod  -t yks-tracker:prod .  (minimal image)
+# ════════════════════════════════════════════════════════
+
+# ─── 1. Bağımlılık indirme (cache katmanı) ───────────────
+FROM golang:1.23-alpine AS deps
+
+RUN apk add --no-cache git
 
 WORKDIR /app
-
-# Bağımlılıkları önce kopyala (Docker cache optimizasyonu)
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download && go mod verify
+
+# ─── 2. Builder ──────────────────────────────────────────
+FROM deps AS builder
+
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 
 COPY . .
 
-# Binary derle (CGO kapalı = static binary)
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app ./cmd/main.go
+# -ldflags: binary boyutunu küçültür (debug sembollerini kaldırır)
+# -trimpath: binary içindeki mutlak yol bilgisini kaldırır (güvenlik)
+RUN go build -ldflags="-w -s" -trimpath -o /out/api     ./cmd/api  && \
+    go build -ldflags="-w -s" -trimpath -o /out/migrate ./cmd/migrate
 
-# ── Runtime Stage (minimal image) ────────────────────────────
-FROM alpine:3.19
+# ─── 3. Development hedefi (hot-reload ile) ──────────────
+FROM golang:1.23-alpine AS dev
 
-# Güvenlik: root olmayan kullanıcı
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN apk add --no-cache tzdata ca-certificates curl && \
+    go install github.com/air-verse/air@latest
 
 WORKDIR /app
 
-COPY --from=builder /app/app .
-COPY --from=builder /app/migrations ./migrations
+# Bağımlılıkları önceden indir (volume mount değiştiğinde tekrar indirilmesin)
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Sertifika (HTTPS istekler için)
-RUN apk --no-cache add ca-certificates
+# Kaynak kod volume olarak mount edilecek, burada COPY yok
+COPY .air.toml ./
 
+EXPOSE 8080
+
+# air: dosya değişikliklerini izleyip otomatik rebuild yapar
+CMD ["air", "-c", ".air.toml"]
+
+# ─── 4. Production hedefi (minimal distroless/alpine) ────
+FROM alpine:3.20 AS prod
+
+# Timezone ve TLS için gerekli; başka hiçbir şey ekleme
+RUN apk add --no-cache tzdata ca-certificates && \
+    addgroup -S appgroup && adduser -S appuser -G appgroup
+
+WORKDIR /app
+
+# Sadece binary ve migrations kopyala
+COPY --from=builder /out/api       ./api
+COPY --from=builder /out/migrate   ./migrate
+COPY migrations                    ./migrations
+
+# root yerine kısıtlı kullanıcı
 USER appuser
 
 EXPOSE 8080
 
-CMD ["./app"]
+# Liveness probe için health check
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -qO- http://localhost:8080/health || exit 1
+
+CMD ["./api"]

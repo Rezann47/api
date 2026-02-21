@@ -1,35 +1,176 @@
 version: "3.9"
 
+# ════════════════════════════════════════════════════════
+#  YKS Tracker — Docker Compose
+#
+#  Kullanım:
+#    Geliştirme : docker compose up                    (prod image)
+#    Dev/hot    : docker compose --profile dev up      (air hot-reload)
+#    Migration  : docker compose run --rm migrate up
+#    Sadece DB  : docker compose up db
+# ════════════════════════════════════════════════════════
+
+x-common-env:
+  # Paylaşılan env referansı
+  &common-env
+  env_file: .env
+
 services:
-  postgres:
-    image: postgres:16
-    container_name: school-postgres
-    restart: always
+
+  # ──────────────────────────────────────────────────────
+  # PostgreSQL 16
+  # ──────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: yks_db
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: schooldb
-      POSTGRES_USER: school_admin
-      POSTGRES_PASSWORD: StrongPass123!
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-yks_tracker}
+      TZ: Europe/Istanbul
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432" # sadece local erişim için; prod'da kaldır
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init.sh:ro # opsiyonel init script
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U school_admin -d schooldb" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-yks_tracker}" ]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
+    networks:
+      - backend
 
+  # ──────────────────────────────────────────────────────
+  # API — Production image
+  # ──────────────────────────────────────────────────────
   api:
-    build: .
-    container_name: gin-api
-    restart: always
+    build:
+      context: .
+      target: prod # Dockerfile'daki "prod" aşaması
+      cache_from:
+        - type=local,src=/tmp/.buildx-cache
+    image: yks-tracker:prod
+    container_name: yks_api
+    restart: unless-stopped
+    <<: *common-env
+    environment:
+      DB_HOST: db # container adı = hostname
+      DB_PORT: 5432
     ports:
-      - "8080:8080"
-    env_file:
-      - .env
+      - "${SERVER_PORT:-8080}:8080"
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
+    networks:
+      - backend
+      - frontend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ──────────────────────────────────────────────────────
+  # API — Development (hot-reload, kaynak kod mount)
+  # Kullanım: docker compose --profile dev up api-dev
+  # ──────────────────────────────────────────────────────
+  api-dev:
+    build:
+      context: .
+      target: dev # Dockerfile'daki "dev" aşaması
+    image: yks-tracker:dev
+    container_name: yks_api_dev
+    <<: *common-env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      APP_ENV: development
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    volumes:
+      - .:/app # kaynak kodu canlı mount
+      - go_cache:/root/.cache/go/pkg # go build cache (hızlı rebuild)
+      - go_mod_cache:/go/pkg/mod
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    profiles: [ dev ]
+
+  # ──────────────────────────────────────────────────────
+  # Migration runner
+  # Kullanım:
+  #   docker compose run --rm migrate up
+  #   docker compose run --rm migrate version
+  #   docker compose run --rm migrate steps -1
+  # ──────────────────────────────────────────────────────
+  migrate:
+    build:
+      context: .
+      target: prod
+    image: yks-tracker:prod
+    container_name: yks_migrate
+    entrypoint: [ "/app/migrate" ]
+    <<: *common-env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    profiles: [ tools ] # docker compose up ile başlamaz
+
+  # ──────────────────────────────────────────────────────
+  # pgAdmin — DB yönetim arayüzü (opsiyonel)
+  # Kullanım: docker compose --profile tools up pgadmin
+  # Adres   : http://localhost:5050
+  # ──────────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: yks_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@yks.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False" # tek kullanıcı modu
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./scripts/pgadmin-servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    profiles: [ tools ]
+
+# ──────────────────────────────────────────────────────────
+# Networks
+# ──────────────────────────────────────────────────────────
+networks:
+  backend:
+    driver: bridge
+    name: yks_backend
+  frontend:
+    driver: bridge
+    name: yks_frontend
+
+# ──────────────────────────────────────────────────────────
+# Volumes
+# ──────────────────────────────────────────────────────────
 volumes:
-  pgdata:
+  postgres_data:
+    name: yks_postgres_data
+  pgadmin_data:
+    name: yks_pgadmin_data
+  go_cache:
+    name: yks_go_cache
+  go_mod_cache:
+    name: yks_go_mod_cache

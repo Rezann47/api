@@ -1,133 +1,96 @@
-# Go Gin CRUD — Production-Ready API
+# YKS Tracker API
 
-PostgreSQL + GORM + JWT + Katmanlı Mimari
+TYT & AYT öğrencileri ve eğitmenleri için REST API backend.
 
-## 📁 Proje Yapısı
+## Teknolojiler
 
-```
-go-gin-crud/
-├── cmd/
-│   └── main.go              # Giriş noktası, DI bağlantısı, server başlatma
-├── config/
-│   ├── config.go            # Env değişkenleri okuma
-│   └── database.go          # GORM + PostgreSQL bağlantı pool
-├── internal/
-│   ├── model/
-│   │   └── model.go         # GORM modelleri (User, Product)
-│   ├── dto/
-│   │   └── dto.go           # Request/Response struct'ları, validasyon
-│   ├── repository/
-│   │   └── repository.go    # Veritabanı işlemleri (CRUD + sayfalama)
-│   ├── service/
-│   │   └── service.go       # Business logic, bcrypt, JWT
-│   ├── handler/
-│   │   └── handler.go       # HTTP handler'lar, route mantığı
-│   └── middleware/
-│       └── middleware.go    # JWT auth, CORS, logger, rate limiter
-├── migrations/
-│   ├── 001_create_users.up.sql
-│   └── 002_create_products.up.sql
-├── docs/
-│   └── api_test.http        # VS Code REST Client test dosyası
-├── .env.example
-├── Dockerfile
-├── docker-compose.yml
-└── Makefile
-```
-handler -> service -> repository -> model
+- **Go 1.23** + **Gin**
+- **PostgreSQL 16** + **GORM**
+- **JWT** (access + refresh token)
+- **golang-migrate** (migration yönetimi)
+- **zap** (structured logging)
+- **Docker** + **Docker Compose**
 
-## 🚀 Hızlı Başlangıç
+## Hızlı Başlangıç
 
-### 1. PostgreSQL başlat
 ```bash
-make docker-up
-# veya: docker-compose up db -d
-```
+# 1. Repo'yu klonla
+git clone https://github.com/yourusername/yks-tracker
+cd yks-tracker
 
-### 2. .env dosyası oluştur
-```bash
+# 2. .env oluştur
 cp .env.example .env
-# .env içini düzenle
+# .env içinde DB_PASSWORD, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET doldur
+sh scripts/generate_secret.sh  # secret üretmek için
+
+# 3. DB başlat
+make db-start
+
+# 4. Migration uygula
+make migrate-up
+
+# 5. Çalıştır
+make dev
 ```
 
-### 3. Uygulamayı çalıştır
-```bash
-make tidy   # bağımlılıkları indir
-make run    # uygulamayı başlat
-```
-
-### Docker Compose ile (tümü birden)
-```bash
-docker-compose up --build
-```
-
-## 🔗 API Endpoint'leri
-
-| Method | Endpoint                  | Auth  | Açıklama               |
-|--------|---------------------------|-------|------------------------|
-| GET    | /health                   | -     | Sağlık kontrolü        |
-| POST   | /api/v1/auth/register     | -     | Kayıt ol               |
-| POST   | /api/v1/auth/login        | -     | Giriş yap, JWT al      |
-| GET    | /api/v1/me                | JWT   | Kendi profili           |
-| GET    | /api/v1/users             | Admin | Tüm kullanıcılar        |
-| GET    | /api/v1/users/:id         | Admin | Tek kullanıcı           |
-| PUT    | /api/v1/users/:id         | Admin | Güncelle               |
-| DELETE | /api/v1/users/:id         | Admin | Sil (soft delete)       |
-| POST   | /api/v1/products          | JWT   | Ürün oluştur           |
-| GET    | /api/v1/products          | JWT   | Ürünleri listele        |
-| GET    | /api/v1/products/:id      | JWT   | Tek ürün               |
-| PUT    | /api/v1/products/:id      | JWT   | Ürün güncelle          |
-| DELETE | /api/v1/products/:id      | JWT   | Ürün sil               |
-
-## 🏗️ Mimari: Katmanlı Yapı
-
-```
-HTTP Request
-     ↓
-  Middleware (JWT, CORS, RateLimit, Logger)
-     ↓
-  Handler   — HTTP parse/validate/respond
-     ↓
-  Service   — Business logic, bcrypt, JWT
-     ↓
-  Repository — SQL/GORM operasyonları
-     ↓
-  PostgreSQL
-```
-
-### Her Katmanın Sorumluluğu
-
-**Handler**: İstek alır, DTO'ya dönüştürür, service'i çağırır, response döner.  
-**Service**: İş kuralları, şifre hashleme, token üretme, yetki kontrolleri.  
-**Repository**: SADECE veritabanı işlemleri. Hiçbir iş mantığı içermez.  
-**Model**: Tablo yapısı. GORM tag'leri burada tanımlanır.  
-**DTO**: Dış dünyaya açılan veri kapısı. `binding:"required"` ile validasyon.
-
-## 🔒 Güvenlik
-
-- **Şifre**: bcrypt cost=12 ile hashlenir, asla plain text saklanmaz
-- **JWT**: HS256, expire süreli, her istekte doğrulanır
-- **Soft Delete**: Kayıtlar fiziksel olarak silinmez, `deleted_at` dolar
-- **Role Based**: user / admin rolü, handler seviyesinde kontrol
-- **Rate Limiting**: IP başına dakika başı istek sınırı
-- **Input Validation**: Gin binding tag'leri ile otomatik
-
-## 📊 Sayfalama Örneği
+## Docker ile Çalıştırma
 
 ```bash
-GET /api/v1/products?page=2&limit=10&search=laptop&sort=price&order=desc
+docker compose up --build
+# Migration otomatik uygulanır
 ```
 
-Response:
-```json
-{
-  "success": true,
-  "data": {
-    "data": [...],
-    "total": 47,
-    "page": 2,
-    "limit": 10,
-    "total_pages": 5
-  }
-}
+## Migration Komutları
+
+```bash
+make migrate-up              # Tüm migration'ları uygula
+make migrate-down            # Geri al (tehlikeli!)
+make migrate-version         # Mevcut versiyon
+make migrate-steps N=-1      # 1 adım geri
+make migrate-force V=3       # Dirty state düzelt
+make migrate-new NAME=add_x  # Yeni migration dosyası
 ```
+
+## API Dokümantasyonu
+
+```bash
+make swagger                 # Swagger üret
+# Sunucu çalışırken: http://localhost:8080/swagger/index.html
+```
+
+## Proje Yapısı
+
+```
+cmd/           → Çalıştırılabilir binary'ler (api, migrate, seed, worker)
+internal/
+  config/      → Konfigürasyon + DB bağlantısı
+  domain/      → Entity, DTO, hata tipleri (saf Go — framework bağımsız)
+  repository/  → Veritabanı erişim katmanı
+  service/     → İş mantığı
+  handler/     → HTTP katmanı (Gin)
+  middleware/  → JWT, CORS, logger, rate-limit
+  server/      → Bağımlılık inject + HTTP server
+pkg/           → Dışa açık yardımcı paketler
+migrations/    → SQL migration dosyaları
+test/          → Integration testleri + yardımcılar
+```
+
+## Endpoint Özeti
+
+| Method | Path | Açıklama | Rol |
+|--------|------|----------|-----|
+| POST | /api/v1/auth/register | Kayıt | Public |
+| POST | /api/v1/auth/login | Giriş | Public |
+| POST | /api/v1/auth/refresh | Token yenile | Public |
+| POST | /api/v1/auth/logout | Çıkış | Auth |
+| GET | /api/v1/users/me | Profil | Auth |
+| GET | /api/v1/subjects | Ders listesi | Auth |
+| PATCH | /api/v1/topics/:id/mark | Konu işaretle | Student |
+| POST | /api/v1/pomodoros | Pomodoro ekle | Student |
+| GET | /api/v1/pomodoros/stats | İstatistik | Student |
+| POST | /api/v1/exam-results | Deneme ekle | Student |
+| GET | /api/v1/exam-results/stats | Gelişim | Student |
+| POST | /api/v1/instructor/students | Öğrenci ekle | Instructor |
+| GET | /api/v1/instructor/students | Öğrenci listesi | Instructor |
+| GET | /api/v1/instructor/students/:id/progress | Öğrenci ilerlemesi | Instructor |
+| GET | /health | Health check | Public |
