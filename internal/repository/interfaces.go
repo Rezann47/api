@@ -18,6 +18,7 @@ type UserRepository interface {
 	Update(ctx context.Context, user *entity.User) error
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	UpdateLastSeen(ctx context.Context, id uuid.UUID, t time.Time) error
 }
 
 // ─── RefreshTokenRepository ───────────────────────────────

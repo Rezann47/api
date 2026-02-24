@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -55,7 +56,10 @@ func (r *userRepo) FindByEmail(ctx context.Context, email string) (*entity.User,
 
 func (r *userRepo) FindByStudentCode(ctx context.Context, code string) (*entity.User, error) {
 	var user entity.User
-	err := r.db.WithContext(ctx).Where("student_code = ? AND role = 'student'", code).First(&user).Error
+	err := r.db.WithContext(ctx).
+		Where("student_code = ? AND role = 'student'", code).
+		First(&user).Error
+
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.NewNotFound("öğrenci", err)
@@ -81,15 +85,28 @@ func (r *userRepo) SoftDelete(ctx context.Context, id uuid.UUID) error {
 
 func (r *userRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var count int64
-	err := r.db.WithContext(ctx).Model(&entity.User{}).
-		Where("email = ?", email).Count(&count).Error
+	err := r.db.WithContext(ctx).
+		Model(&entity.User{}).
+		Where("email = ?", email).
+		Count(&count).Error
+
 	if err != nil {
 		return false, apperror.NewInternal(err)
 	}
 	return count > 0, nil
 }
 
-// isDuplicateKeyError PostgreSQL unique constraint ihlalini kontrol eder
+// 🔹 Ping için kullanılan method
+func (r *userRepo) UpdateLastSeen(ctx context.Context, id uuid.UUID, t time.Time) error {
+	return r.db.WithContext(ctx).
+		Model(&entity.User{}).
+		Where("id = ?", id).
+		UpdateColumn("last_seen_at", t).
+		Error
+}
+
+// --- helpers ---
+
 func isDuplicateKeyError(err error) bool {
 	return err != nil && (containsString(err.Error(), "duplicate key") ||
 		containsString(err.Error(), "unique constraint"))

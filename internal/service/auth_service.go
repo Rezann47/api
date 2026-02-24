@@ -176,5 +176,6 @@ func mapUserToAuthRes(u *entity.User) dto.AuthUserRes {
 		Role:        string(u.Role),
 		StudentCode: u.StudentCode,
 		IsPremium:   u.IsPremium,
+		AvatarID:    u.AvatarID,
 	}
 }

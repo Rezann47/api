@@ -23,6 +23,7 @@ type UserService interface {
 	ChangePassword(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordReq) error
 	GetPremiumStatus(ctx context.Context, userID uuid.UUID) (*dto.PremiumStatusRes, error)
 	ActivatePremium(ctx context.Context, userID uuid.UUID) (*dto.PremiumStatusRes, error)
+	Ping(ctx context.Context, userID uuid.UUID) error
 }
 
 type SubjectService interface {
@@ -55,4 +56,5 @@ type InstructorService interface {
 	GetStudentPomodoros(ctx context.Context, instructorID, studentID uuid.UUID, from, to time.Time) (*dto.PomodoroStatsRes, error)
 	GetStudentProgress(ctx context.Context, instructorID, studentID uuid.UUID) ([]dto.SubjectProgressRes, error)
 	GetStudentExamResults(ctx context.Context, instructorID, studentID uuid.UUID, examType *entity.ExamType, pagination dto.PaginationReq) (*dto.PaginatedRes[dto.ExamResultRes], error)
+	ListMyInstructors(ctx context.Context, studentID uuid.UUID) ([]dto.InstructorRes, error)
 }

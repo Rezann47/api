@@ -23,7 +23,17 @@ type User struct {
 	StudentCode  *string        `gorm:"type:varchar(20)"`
 	IsPremium    bool           `gorm:"not null;default:false"`
 	IsActive     bool           `gorm:"not null;default:true"`
+	AvatarID     int16          `gorm:"not null;default:1"`
+	LastSeenAt   *time.Time     `gorm:"index"`
 	CreatedAt    time.Time      `gorm:"not null;autoCreateTime"`
 	UpdatedAt    time.Time      `gorm:"not null;autoUpdateTime"`
 	DeletedAt    gorm.DeletedAt `gorm:"index"`
+}
+
+// Son 3 dakika içinde ping attıysa aktif sayılır
+func (u *User) IsOnline() bool {
+	if u.LastSeenAt == nil {
+		return false
+	}
+	return time.Since(*u.LastSeenAt) < 3*time.Minute
 }

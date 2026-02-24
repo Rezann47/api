@@ -104,9 +104,9 @@ func (r *progressRepo) FindCompletedByUserAndSubject(ctx context.Context, userID
 	var ids []uuid.UUID
 	err := r.db.WithContext(ctx).
 		Model(&entity.StudentTopicProgress{}).
-		Joins("JOIN topics ON topics.id = student_topic_progresses.topic_id").
-		Where("student_topic_progresses.user_id = ? AND topics.subject_id = ?", userID, subjectID).
-		Pluck("student_topic_progresses.topic_id", &ids).Error
+		Joins("JOIN topics ON topics.id = student_topic_progress.topic_id").
+		Where("student_topic_progress.user_id = ? AND topics.subject_id = ?", userID, subjectID).
+		Pluck("student_topic_progress.topic_id", &ids).Error
 	return ids, err
 }
 
@@ -126,8 +126,8 @@ func (r *progressRepo) CountBySubject(ctx context.Context, userID, subjectID uui
 
 	// Tamamlanan topic sayısı
 	r.db.WithContext(ctx).Model(&entity.StudentTopicProgress{}).
-		Joins("JOIN topics ON topics.id = student_topic_progresses.topic_id").
-		Where("student_topic_progresses.user_id = ? AND topics.subject_id = ?", userID, subjectID).
+		Joins("JOIN topics ON topics.id = student_topic_progress.topic_id").
+		Where("student_topic_progress.user_id = ? AND topics.subject_id = ?", userID, subjectID).
 		Count(&completed)
 
 	return total, completed, nil

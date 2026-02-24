@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/Rezann47/YksKoc/internal/domain/dto"
@@ -65,4 +67,14 @@ func (h *UserHandler) ActivatePremium(c *gin.Context) {
 		return
 	}
 	response.OK(c, res)
+}
+
+// Ping — kullanıcı uygulama içindeyken her 2 dakikada bir çağırır
+// POST /users/me/ping
+func (h *UserHandler) Ping(c *gin.Context) {
+	if err := h.svc.Ping(c.Request.Context(), middleware.GetUserID(c)); err != nil {
+		response.Error(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

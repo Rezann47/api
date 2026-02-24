@@ -17,6 +17,8 @@ type Handlers struct {
 	Pomodoro   *PomodoroHandler
 	ExamResult *ExamResultHandler
 	Instructor *InstructorHandler
+	StudyPlan  *StudyPlanHandler
+	Message    *MessageHandler
 	Health     *HealthHandler
 }
 
@@ -27,7 +29,7 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 
 	// ─── Global Middleware ─────────────────────────────────
 	r.Use(
-		middleware.Recovery(nil), // logger inject edilecek
+		middleware.Recovery(nil),
 		middleware.RequestID(),
 		middleware.CORS(),
 	)
@@ -63,9 +65,17 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 		users.POST("/me/change-password", h.User.ChangePassword)
 		users.GET("/me/premium", h.User.GetPremiumStatus)
 		users.POST("/me/premium/activate", h.User.ActivatePremium)
+		users.POST("/me/ping", h.User.Ping)
 	}
 
-	// ─── Subjects & Topics (öğrenci) ──────────────────────
+	// ─── Students (öğrenci rolü) ──────────────────────────
+	students := protected.Group("/students")
+	students.Use(middleware.RequireRole("student"))
+	{
+		students.GET("/my-instructors", h.Instructor.ListMyInstructors)
+	}
+
+	// ─── Subjects & Topics ────────────────────────────────
 	subjects := protected.Group("/subjects")
 	subjects.Use(middleware.RequireRole("student", "instructor"))
 	{
@@ -75,7 +85,6 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 		subjects.GET("/progress", h.Subject.GetAllProgress)
 	}
 
-	// Konu işaretleme — sadece öğrenci
 	topics := protected.Group("/topics")
 	topics.Use(middleware.RequireRole("student"))
 	{
@@ -110,10 +119,34 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 		instructor.GET("/students", h.Instructor.ListStudents)
 		instructor.DELETE("/students/:studentID", h.Instructor.RemoveStudent)
 
-		// Öğrenci verisi görüntüleme (salt okunur)
 		instructor.GET("/students/:studentID/pomodoros", h.Instructor.GetStudentPomodoros)
 		instructor.GET("/students/:studentID/progress", h.Instructor.GetStudentProgress)
 		instructor.GET("/students/:studentID/exam-results", h.Instructor.GetStudentExamResults)
+
+		instructor.POST("/students/:studentID/study-plans", h.StudyPlan.CreateForStudent)
+		instructor.GET("/students/:studentID/study-plans", h.StudyPlan.GetStudentPlans)
+	}
+
+	// ─── Messages (her iki rol) ───────────────────────────
+	messages := protected.Group("/messages")
+	{
+		messages.POST("", h.Message.Send)
+		messages.GET("/conversations", h.Message.ListConversations)
+		messages.GET("/conversations/:peerID", h.Message.GetConversation)
+		messages.POST("/conversations/:peerID/read", h.Message.MarkRead)
+		messages.GET("/unread", h.Message.UnreadCount)
+	}
+
+	// ─── Study Plans (öğrenci) ────────────────────────────
+	studyPlans := protected.Group("/study-plans")
+	studyPlans.Use(middleware.RequireRole("student"))
+	{
+		studyPlans.POST("", h.StudyPlan.Create)
+		studyPlans.GET("", h.StudyPlan.ListByDate)
+		studyPlans.GET("/month", h.StudyPlan.ListByMonth)
+		studyPlans.DELETE("/:id", h.StudyPlan.Delete)
+		studyPlans.PATCH("/:id/items/:itemID/complete", h.StudyPlan.CompleteItem)
+		studyPlans.PATCH("/:id/items/:itemID/uncomplete", h.StudyPlan.UncompleteItem)
 	}
 
 	return r
@@ -127,6 +160,8 @@ func NewHandlers(
 	pomodoroSvc service.PomodoroService,
 	examSvc service.ExamResultService,
 	instructorSvc service.InstructorService,
+	studyPlanSvc service.StudyPlanService,
+	messageSvc service.MessageService,
 ) *Handlers {
 	return &Handlers{
 		Auth:       NewAuthHandler(authSvc),
@@ -135,6 +170,8 @@ func NewHandlers(
 		Pomodoro:   NewPomodoroHandler(pomodoroSvc),
 		ExamResult: NewExamResultHandler(examSvc),
 		Instructor: NewInstructorHandler(instructorSvc),
+		StudyPlan:  NewStudyPlanHandler(studyPlanSvc),
+		Message:    NewMessageHandler(messageSvc),
 		Health:     NewHealthHandler(),
 	}
 }

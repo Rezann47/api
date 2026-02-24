@@ -75,6 +75,9 @@ func (s *instructorService) ListStudents(ctx context.Context, instructorID uuid.
 			Name:        st.Name,
 			Email:       st.Email,
 			StudentCode: code,
+			AvatarID:    st.AvatarID,
+			IsOnline:    st.IsOnline(),
+			LastSeenAt:  st.LastSeenAt,
 			AddedAt:     st.CreatedAt,
 		}
 	}
@@ -177,4 +180,22 @@ func (s *instructorService) GetStudentExamResults(ctx context.Context, instructo
 
 	paged := dto.NewPaginatedRes(res, total, pagination.Page, pagination.Limit)
 	return &paged, nil
+}
+func (s *instructorService) ListMyInstructors(ctx context.Context, studentID uuid.UUID) ([]dto.InstructorRes, error) {
+	instructors, err := s.relRepo.ListInstructors(ctx, studentID)
+	if err != nil {
+		return nil, apperror.NewInternal(err)
+	}
+	res := make([]dto.InstructorRes, len(instructors))
+	for i, inst := range instructors {
+		res[i] = dto.InstructorRes{
+			ID:         inst.ID,
+			Name:       inst.Name,
+			Email:      inst.Email,
+			AvatarID:   inst.AvatarID,
+			IsOnline:   inst.IsOnline(),
+			LastSeenAt: inst.LastSeenAt,
+		}
+	}
+	return res, nil
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -38,6 +39,9 @@ func (s *userService) UpdateProfile(ctx context.Context, userID uuid.UUID, req d
 	}
 	if req.Name != "" {
 		user.Name = req.Name
+	}
+	if req.AvatarID != nil {
+		user.AvatarID = *req.AvatarID
 	}
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
@@ -82,6 +86,12 @@ func (s *userService) ActivatePremium(ctx context.Context, userID uuid.UUID) (*d
 	return &dto.PremiumStatusRes{IsPremium: true}, nil
 }
 
+// Ping — kullanıcı aktif olduğunu bildirir, last_seen_at güncellenir
+func (s *userService) Ping(ctx context.Context, userID uuid.UUID) error {
+	now := time.Now()
+	return s.userRepo.UpdateLastSeen(ctx, userID, now)
+}
+
 func mapUserToRes(u *entity.User) dto.UserRes {
 	return dto.UserRes{
 		ID:          u.ID,
@@ -90,6 +100,9 @@ func mapUserToRes(u *entity.User) dto.UserRes {
 		Role:        string(u.Role),
 		StudentCode: u.StudentCode,
 		IsPremium:   u.IsPremium,
+		AvatarID:    u.AvatarID,
+		LastSeenAt:  u.LastSeenAt,
+		IsOnline:    u.IsOnline(),
 		CreatedAt:   u.CreatedAt,
 	}
 }

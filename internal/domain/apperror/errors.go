@@ -61,6 +61,9 @@ func NewValidation(msg string) *AppError {
 func NewInternal(err error) *AppError {
 	return New("INTERNAL_ERROR", "Beklenmedik bir hata oluştu", http.StatusInternalServerError, err)
 }
+func NewBadRequest(msg string) *AppError {
+	return New("BAD_REQUEST", msg, http.StatusBadRequest, nil)
+}
 
 // ─── Sentinel hatalar ─────────────────────────────────────
 

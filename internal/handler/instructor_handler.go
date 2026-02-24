@@ -96,3 +96,13 @@ func (h *InstructorHandler) GetStudentExamResults(c *gin.Context) {
 	}
 	response.OK(c, res)
 }
+
+// GET /students/my-instructors
+func (h *InstructorHandler) ListMyInstructors(c *gin.Context) {
+	res, err := h.svc.ListMyInstructors(c.Request.Context(), middleware.GetUserID(c))
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.OK(c, res)
+}

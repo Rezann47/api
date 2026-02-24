@@ -21,7 +21,7 @@ type Server struct {
 }
 
 func New(cfg *config.Config, log *zap.Logger) (*Server, error) {
-	// 1. DB
+	// 1. DB bağlantısı (kodun mevcut kısmı)
 	db, err := database.Connect(&cfg.DB, cfg.App.Env)
 	if err != nil {
 		return nil, fmt.Errorf("db connect: %w", err)
@@ -36,6 +36,8 @@ func New(cfg *config.Config, log *zap.Logger) (*Server, error) {
 	pomodoroRepo := repository.NewPomodoroRepository(db)
 	examResultRepo := repository.NewExamResultRepository(db)
 	instructorRepo := repository.NewInstructorStudentRepository(db)
+	// --- BURAYI EKLE ---
+	studyPlanRepo := repository.NewStudyPlanRepository(db)
 
 	// 3. Services
 	authSvc := service.NewAuthService(userRepo, tokenRepo, cfg.JWT, log)
@@ -47,15 +49,29 @@ func New(cfg *config.Config, log *zap.Logger) (*Server, error) {
 		instructorRepo, userRepo, pomodoroRepo,
 		progressRepo, subjectRepo, examResultRepo, log,
 	)
+	// --- BURAYI EKLE ---
+	studyPlanSvc := service.NewStudyPlanService(studyPlanRepo, log)
 
+	msgRepo := repository.NewMessageRepository(db)                        // ← EKLE
+	messageSvc := service.NewMessageService(msgRepo, instructorRepo, log) // ← EKLE
 	// 4. Handlers & Router
-	handlers := handler.NewHandlers(authSvc, userSvc, subjectSvc, pomodoroSvc, examSvc, instructorSvc)
+	// --- studyPlanSvc ARGÜMANINI EN SONA EKLE ---
+	handlers := handler.NewHandlers(
+		authSvc,
+		userSvc,
+		subjectSvc,
+		pomodoroSvc,
+		examSvc,
+		instructorSvc,
+		studyPlanSvc,
+		messageSvc,
+	)
+
 	router := handler.NewRouter(handlers, cfg.JWT)
 
-	// Logger middleware'i burada inject ediyoruz (server'da log var)
+	// ... geri kalan kısımlar aynı ...
 	router.Use(middleware.Logger(log))
 
-	// 5. HTTP Server
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
 		Handler:      router,

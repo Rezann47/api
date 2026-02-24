@@ -32,6 +32,7 @@ type AuthUserRes struct {
 	Role        string    `json:"role"`
 	StudentCode *string   `json:"student_code,omitempty"`
 	IsPremium   bool      `json:"is_premium"`
+	AvatarID    int16     `json:"avatar_id"`
 }
 
 type LoginRes struct {

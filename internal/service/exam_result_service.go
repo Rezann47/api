@@ -102,11 +102,28 @@ func (s *examResultService) Delete(ctx context.Context, id, userID uuid.UUID) er
 }
 
 func mapExamResultToRes(r *entity.ExamResult) *dto.ExamResultRes {
+	translatedScores := make(entity.ExamScores)
+
+	mapping := map[string]string{
+		"math":    "Matematik",
+		"science": "Fen ",
+		"social":  "Sosyal ",
+		"turkish": "Türkçe",
+	}
+
+	for k, v := range r.Scores {
+		if tr, ok := mapping[k]; ok {
+			translatedScores[tr] = v
+		} else {
+			translatedScores[k] = v
+		}
+	}
+
 	return &dto.ExamResultRes{
 		ID:        r.ID,
 		ExamType:  string(r.ExamType),
 		ExamDate:  r.ExamDate,
-		Scores:    r.Scores,
+		Scores:    translatedScores, // Çevrilmiş skorları gönder
 		TotalNet:  r.TotalNet,
 		Note:      r.Note,
 		CreatedAt: r.CreatedAt,

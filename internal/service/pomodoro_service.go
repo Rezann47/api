@@ -22,24 +22,43 @@ func NewPomodoroService(repo repository.PomodoroRepository, log *zap.Logger) Pom
 	return &pomodoroService{repo: repo, log: log}
 }
 
+// Create Pomodoro (test-ready, fallback ile)
 func (s *pomodoroService) Create(ctx context.Context, userID uuid.UUID, req dto.CreatePomodoroReq) (*dto.PomodoroRes, error) {
-	startedAt := time.Now()
+	// Başlangıç zamanı pointer ile
+	var startedAt *time.Time
 	if req.StartedAt != nil {
-		startedAt = *req.StartedAt
+		startedAt = req.StartedAt
+	} else {
+		now := time.Now()
+		startedAt = &now
+	}
+
+	// Minimum 1 dakika
+	duration := req.DurationMinutes
+	if duration < 1 {
+		duration = 1
 	}
 
 	p := &entity.Pomodoro{
 		UserID:          userID,
 		SubjectID:       req.SubjectID,
-		DurationMinutes: req.DurationMinutes,
-		StartedAt:       startedAt,
+		DurationMinutes: duration,
+		StartedAt:       *startedAt, // entity time.Time olduğu için dereference ediyoruz
 	}
+
+	// DB insert hatalarını logla
 	if err := s.repo.Create(ctx, p); err != nil {
+		s.log.Error("Pomodoro create failed",
+			zap.Error(err),
+			zap.Any("payload", p),
+		)
 		return nil, apperror.NewInternal(err)
 	}
+
 	return mapPomodoroToRes(p, nil), nil
 }
 
+// Listeleme
 func (s *pomodoroService) List(ctx context.Context, userID uuid.UUID, filter dto.PomodoroListFilter) (*dto.PaginatedRes[dto.PomodoroRes], error) {
 	items, total, err := s.repo.ListByUser(ctx, userID, filter.From, filter.To, filter.Offset(), filter.Limit)
 	if err != nil {
@@ -55,10 +74,12 @@ func (s *pomodoroService) List(ctx context.Context, userID uuid.UUID, filter dto
 		}
 		res[i] = *mapPomodoroToRes(&p, subName)
 	}
+
 	paged := dto.NewPaginatedRes(res, total, filter.Page, filter.Limit)
 	return &paged, nil
 }
 
+// İstatistik
 func (s *pomodoroService) GetStats(ctx context.Context, userID uuid.UUID, from, to time.Time) (*dto.PomodoroStatsRes, error) {
 	totalMin, err := s.repo.SumMinutesByUser(ctx, userID, from, to)
 	if err != nil {
@@ -88,10 +109,12 @@ func (s *pomodoroService) GetStats(ctx context.Context, userID uuid.UUID, from, 
 	}, nil
 }
 
+// Silme
 func (s *pomodoroService) Delete(ctx context.Context, id, userID uuid.UUID) error {
 	return s.repo.Delete(ctx, id, userID)
 }
 
+// Mapper
 func mapPomodoroToRes(p *entity.Pomodoro, subjectName *string) *dto.PomodoroRes {
 	return &dto.PomodoroRes{
 		ID:              p.ID,

@@ -46,3 +46,7 @@ type StudentTopicProgress struct {
 	User  User  `gorm:"foreignKey:UserID"`
 	Topic Topic `gorm:"foreignKey:TopicID"`
 }
+
+func (StudentTopicProgress) TableName() string {
+	return "student_topic_progress"
+}
