@@ -52,6 +52,8 @@ func New(cfg *config.Config, log *zap.Logger) (*Server, error) {
 	// --- BURAYI EKLE ---
 	studyPlanSvc := service.NewStudyPlanService(studyPlanRepo, log)
 
+	streakSvc := service.NewStreakService(db)
+
 	msgRepo := repository.NewMessageRepository(db)                        // ← EKLE
 	messageSvc := service.NewMessageService(msgRepo, instructorRepo, log) // ← EKLE
 	// 4. Handlers & Router
@@ -65,6 +67,7 @@ func New(cfg *config.Config, log *zap.Logger) (*Server, error) {
 		instructorSvc,
 		studyPlanSvc,
 		messageSvc,
+		streakSvc,
 	)
 
 	router := handler.NewRouter(handlers, cfg.JWT)

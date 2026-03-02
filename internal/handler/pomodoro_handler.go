@@ -12,10 +12,13 @@ import (
 	"github.com/Rezann47/YksKoc/pkg/response"
 )
 
-type PomodoroHandler struct{ svc service.PomodoroService }
+type PomodoroHandler struct {
+	svc       service.PomodoroService
+	streakSvc *service.StreakService // ← YENİ
+}
 
-func NewPomodoroHandler(svc service.PomodoroService) *PomodoroHandler {
-	return &PomodoroHandler{svc: svc}
+func NewPomodoroHandler(svc service.PomodoroService, streakSvc *service.StreakService) *PomodoroHandler {
+	return &PomodoroHandler{svc: svc, streakSvc: streakSvc}
 }
 
 func (h *PomodoroHandler) Create(c *gin.Context) {
@@ -24,11 +27,29 @@ func (h *PomodoroHandler) Create(c *gin.Context) {
 		response.ValidationError(c, err.Error())
 		return
 	}
-	res, err := h.svc.Create(c.Request.Context(), middleware.GetUserID(c), req)
+
+	userID := middleware.GetUserID(c)
+
+	res, err := h.svc.Create(c.Request.Context(), userID, req)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
+
+	// ── Streak güncelle ──────────────────────────────────────
+	// Pomodoro kaydedildikten sonra günlük seriyi güncelle.
+	// Hata olsa bile pomodoro yanıtını döndür (streak kritik değil).
+	streakResult, streakErr := h.streakSvc.UpdateStreak(c.Request.Context(), userID)
+	if streakErr == nil && len(streakResult.NewBadges) > 0 {
+		// Yeni rozet kazanıldı → frontend popup gösterebilir
+		response.Created(c, gin.H{
+			"pomodoro": res,
+			"streak":   streakResult,
+		})
+		return
+	}
+	// ── /Streak ─────────────────────────────────────────────
+
 	response.Created(c, res)
 }
 
@@ -67,6 +88,7 @@ func (h *PomodoroHandler) Delete(c *gin.Context) {
 		response.ValidationError(c, "geçersiz ID")
 		return
 	}
+
 	if err := h.svc.Delete(c.Request.Context(), id, middleware.GetUserID(c)); err != nil {
 		response.Error(c, err)
 		return

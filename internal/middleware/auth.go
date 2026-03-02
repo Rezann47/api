@@ -55,9 +55,23 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 }
 
 func GetUserID(c *gin.Context) uuid.UUID {
-	v, _ := c.Get(CtxUserID)
-	id, _ := v.(uuid.UUID)
-	return id
+	v, exists := c.Get(CtxUserID)
+	if !exists {
+		return uuid.Nil
+	}
+
+	switch id := v.(type) {
+	case uuid.UUID:
+		return id
+	case string:
+		u, err := uuid.Parse(id)
+		if err != nil {
+			return uuid.Nil
+		}
+		return u
+	default:
+		return uuid.Nil
+	}
 }
 
 func GetRole(c *gin.Context) string {

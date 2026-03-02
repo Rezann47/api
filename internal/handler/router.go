@@ -20,27 +20,29 @@ type Handlers struct {
 	StudyPlan  *StudyPlanHandler
 	Message    *MessageHandler
 	Health     *HealthHandler
+	Streak     *StreakHandler
 }
 
+// NewRouter tüm route'ları ve middleware'leri ayarlar
 func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.New()
 
-	// ─── Global Middleware ─────────────────────────────────
+	// ─── Global Middleware ───────────────────────────────
 	r.Use(
 		middleware.Recovery(nil),
 		middleware.RequestID(),
 		middleware.CORS(),
 	)
 
-	// ─── Health ───────────────────────────────────────────
+	// ─── Health ─────────────────────────────────────────
 	r.GET("/health", h.Health.Check)
 
-	// ─── Swagger ──────────────────────────────────────────
+	// ─── Swagger ────────────────────────────────────────
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// ─── API v1 ───────────────────────────────────────────
+	// ─── API v1 ─────────────────────────────────────────
 	v1 := r.Group("/api/v1")
 
 	// Auth (public)
@@ -57,7 +59,7 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 	protected := v1.Group("")
 	protected.Use(middleware.Auth(cfg))
 
-	// ─── User ─────────────────────────────────────────────
+	// ─── User ───────────────────────────────────────────
 	users := protected.Group("/users")
 	{
 		users.GET("/me", h.User.GetProfile)
@@ -68,14 +70,22 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 		users.POST("/me/ping", h.User.Ping)
 	}
 
-	// ─── Students (öğrenci rolü) ──────────────────────────
+	// ─── Streak & Badges ────────────────────────────────
+	streak := protected.Group("")
+	{
+		streak.GET("/streak/me", h.Streak.GetMyStreak)
+		streak.GET("/badges/me", h.Streak.GetMyBadges)
+		streak.GET("/leaderboard", h.Streak.GetLeaderboard)
+	}
+
+	// ─── Students (öğrenci rolü) ───────────────────────
 	students := protected.Group("/students")
 	students.Use(middleware.RequireRole("student"))
 	{
 		students.GET("/my-instructors", h.Instructor.ListMyInstructors)
 	}
 
-	// ─── Subjects & Topics ────────────────────────────────
+	// ─── Subjects & Topics ──────────────────────────────
 	subjects := protected.Group("/subjects")
 	subjects.Use(middleware.RequireRole("student", "instructor"))
 	{
@@ -91,7 +101,7 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 		topics.PATCH("/:topicID/mark", h.Subject.MarkTopic)
 	}
 
-	// ─── Pomodoro (öğrenci) ───────────────────────────────
+	// ─── Pomodoro (öğrenci) ─────────────────────────────
 	pomodoros := protected.Group("/pomodoros")
 	pomodoros.Use(middleware.RequireRole("student"))
 	{
@@ -101,7 +111,7 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 		pomodoros.DELETE("/:id", h.Pomodoro.Delete)
 	}
 
-	// ─── Exam Results (öğrenci) ───────────────────────────
+	// ─── Exam Results (öğrenci) ─────────────────────────
 	exams := protected.Group("/exam-results")
 	exams.Use(middleware.RequireRole("student"))
 	{
@@ -111,7 +121,7 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 		exams.DELETE("/:id", h.ExamResult.Delete)
 	}
 
-	// ─── Instructor ───────────────────────────────────────
+	// ─── Instructor ─────────────────────────────────────
 	instructor := protected.Group("/instructor")
 	instructor.Use(middleware.RequireRole("instructor"))
 	{
@@ -127,7 +137,7 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 		instructor.GET("/students/:studentID/study-plans", h.StudyPlan.GetStudentPlans)
 	}
 
-	// ─── Messages (her iki rol) ───────────────────────────
+	// ─── Messages (her iki rol) ─────────────────────────
 	messages := protected.Group("/messages")
 	{
 		messages.POST("", h.Message.Send)
@@ -137,7 +147,7 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 		messages.GET("/unread", h.Message.UnreadCount)
 	}
 
-	// ─── Study Plans (öğrenci) ────────────────────────────
+	// ─── Study Plans (öğrenci) ──────────────────────────
 	studyPlans := protected.Group("/study-plans")
 	studyPlans.Use(middleware.RequireRole("student"))
 	{
@@ -153,6 +163,9 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 }
 
 // NewHandlers tüm handler'ları service bağımlılıklarıyla oluşturur
+// router.go içinde NewHandlers fonksiyonunu şu şekilde güncelle:
+// Sadece Pomodoro satırı değişti — streakSvc ikinci parametre olarak geçiliyor
+
 func NewHandlers(
 	authSvc service.AuthService,
 	userSvc service.UserService,
@@ -162,16 +175,18 @@ func NewHandlers(
 	instructorSvc service.InstructorService,
 	studyPlanSvc service.StudyPlanService,
 	messageSvc service.MessageService,
+	streakSvc *service.StreakService,
 ) *Handlers {
 	return &Handlers{
 		Auth:       NewAuthHandler(authSvc),
 		User:       NewUserHandler(userSvc),
 		Subject:    NewSubjectHandler(subjectSvc),
-		Pomodoro:   NewPomodoroHandler(pomodoroSvc),
+		Pomodoro:   NewPomodoroHandler(pomodoroSvc, streakSvc), // ← streakSvc eklendi
 		ExamResult: NewExamResultHandler(examSvc),
 		Instructor: NewInstructorHandler(instructorSvc),
 		StudyPlan:  NewStudyPlanHandler(studyPlanSvc),
 		Message:    NewMessageHandler(messageSvc),
 		Health:     NewHealthHandler(),
+		Streak:     NewStreakHandler(streakSvc),
 	}
 }
