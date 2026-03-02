@@ -1,6 +1,6 @@
 -- users tablosuna streak kolonları ekle
-ALTER TABLE users ADD COLUMN IF NOT EXISTS current_streak  INT          NOT NULL DEFAULT 0;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS longest_streak  INT          NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS current_streak  INT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS longest_streak  INT NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_study_date DATE;
 
 -- Rozetler tablosu
@@ -31,5 +31,5 @@ LEFT JOIN pomodoros p
     AND p.started_at >= NOW() - INTERVAL '7 days'
 WHERE u.role = 'student'
   AND u.deleted_at IS NULL
-GROUP BY u.id, u.name AS full_name, u.avatar_id, u.current_streak
+GROUP BY u.id, u.name, u.avatar_id, u.current_streak
 ORDER BY total_minutes DESC;
