@@ -59,7 +59,6 @@ func (r *userRepo) FindByStudentCode(ctx context.Context, code string) (*entity.
 	err := r.db.WithContext(ctx).
 		Where("student_code = ? AND role = 'student'", code).
 		First(&user).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.NewNotFound("öğrenci", err)
@@ -71,6 +70,22 @@ func (r *userRepo) FindByStudentCode(ctx context.Context, code string) (*entity.
 
 func (r *userRepo) Update(ctx context.Context, user *entity.User) error {
 	if err := r.db.WithContext(ctx).Save(user).Error; err != nil {
+		return apperror.NewInternal(err)
+	}
+	return nil
+}
+
+// UpdatePremium — sadece premium alanlarını günceller, diğer alanları dokunmaz
+func (r *userRepo) UpdatePremium(ctx context.Context, id uuid.UUID, isPremium bool, expiresAt *time.Time, txID string) error {
+	err := r.db.WithContext(ctx).
+		Model(&entity.User{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"is_premium":               isPremium,
+			"premium_expires_at":       expiresAt,
+			"last_premium_transaction": txID,
+		}).Error
+	if err != nil {
 		return apperror.NewInternal(err)
 	}
 	return nil
@@ -89,14 +104,12 @@ func (r *userRepo) ExistsByEmail(ctx context.Context, email string) (bool, error
 		Model(&entity.User{}).
 		Where("email = ?", email).
 		Count(&count).Error
-
 	if err != nil {
 		return false, apperror.NewInternal(err)
 	}
 	return count > 0, nil
 }
 
-// 🔹 Ping için kullanılan method
 func (r *userRepo) UpdateLastSeen(ctx context.Context, id uuid.UUID, t time.Time) error {
 	return r.db.WithContext(ctx).
 		Model(&entity.User{}).
@@ -105,8 +118,14 @@ func (r *userRepo) UpdateLastSeen(ctx context.Context, id uuid.UUID, t time.Time
 		Error
 }
 
-// --- helpers ---
+func (r *userRepo) DeleteAccount(ctx context.Context, id uuid.UUID) error {
+	if err := r.db.WithContext(ctx).Delete(&entity.User{}, id).Error; err != nil {
+		return apperror.NewInternal(err)
+	}
+	return nil
+}
 
+// --- helpers ---
 func isDuplicateKeyError(err error) bool {
 	return err != nil && (containsString(err.Error(), "duplicate key") ||
 		containsString(err.Error(), "unique constraint"))

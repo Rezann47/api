@@ -19,6 +19,8 @@ type UserRepository interface {
 	SoftDelete(ctx context.Context, id uuid.UUID) error
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	UpdateLastSeen(ctx context.Context, id uuid.UUID, t time.Time) error
+	UpdatePremium(ctx context.Context, id uuid.UUID, isPremium bool, expiresAt *time.Time, txID string) error
+	DeleteAccount(ctx context.Context, id uuid.UUID) error
 }
 
 // ─── RefreshTokenRepository ───────────────────────────────

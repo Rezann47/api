@@ -22,8 +22,9 @@ type UserService interface {
 	UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileReq) (*dto.UserRes, error)
 	ChangePassword(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordReq) error
 	GetPremiumStatus(ctx context.Context, userID uuid.UUID) (*dto.PremiumStatusRes, error)
-	ActivatePremium(ctx context.Context, userID uuid.UUID) (*dto.PremiumStatusRes, error)
+	ActivatePremium(ctx context.Context, userID uuid.UUID, req dto.ActivatePremiumReq) (*dto.PremiumStatusRes, error)
 	Ping(ctx context.Context, userID uuid.UUID) error
+	DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.DeleteAccountReq) error
 }
 
 type SubjectService interface {

@@ -3,12 +3,11 @@ package handler
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/Rezann47/YksKoc/internal/domain/dto"
 	"github.com/Rezann47/YksKoc/internal/middleware"
 	"github.com/Rezann47/YksKoc/internal/service"
 	"github.com/Rezann47/YksKoc/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct{ svc service.UserService }
@@ -61,7 +60,12 @@ func (h *UserHandler) GetPremiumStatus(c *gin.Context) {
 }
 
 func (h *UserHandler) ActivatePremium(c *gin.Context) {
-	res, err := h.svc.ActivatePremium(c.Request.Context(), middleware.GetUserID(c))
+	var req dto.ActivatePremiumReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ValidationError(c, err.Error())
+		return
+	}
+	res, err := h.svc.ActivatePremium(c.Request.Context(), middleware.GetUserID(c), req)
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -69,12 +73,22 @@ func (h *UserHandler) ActivatePremium(c *gin.Context) {
 	response.OK(c, res)
 }
 
-// Ping — kullanıcı uygulama içindeyken her 2 dakikada bir çağırır
-// POST /users/me/ping
 func (h *UserHandler) Ping(c *gin.Context) {
 	if err := h.svc.Ping(c.Request.Context(), middleware.GetUserID(c)); err != nil {
 		response.Error(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+func (h *UserHandler) DeleteAccount(c *gin.Context) {
+	var req dto.DeleteAccountReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ValidationError(c, err.Error())
+		return
+	}
+	if err := h.svc.DeleteAccount(c.Request.Context(), middleware.GetUserID(c), req); err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.NoContent(c)
 }

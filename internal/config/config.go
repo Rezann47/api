@@ -10,10 +10,11 @@ import (
 )
 
 type Config struct {
-	App    AppConfig
-	DB     DBConfig
-	JWT    JWTConfig
-	Server ServerConfig
+	App               AppConfig
+	DB                DBConfig
+	JWT               JWTConfig
+	Server            ServerConfig
+	AppleSharedSecret string // ✅ eklendi
 }
 
 type AppConfig struct {
@@ -22,7 +23,7 @@ type AppConfig struct {
 }
 
 type DBConfig struct {
-	URL      string // DATABASE_URL varsa direkt kullanılır
+	URL      string
 	Host     string
 	Port     int
 	User     string
@@ -34,7 +35,6 @@ type DBConfig struct {
 	MaxLife  time.Duration
 }
 
-// DSN önce DATABASE_URL'e bakar, yoksa parçalardan oluşturur
 func (d DBConfig) DSN() string {
 	if d.URL != "" {
 		return d.URL
@@ -45,7 +45,6 @@ func (d DBConfig) DSN() string {
 	)
 }
 
-// MigrateDSN golang-migrate için URL formatı
 func (d DBConfig) MigrateDSN() string {
 	if d.URL != "" {
 		return d.URL
@@ -102,15 +101,18 @@ func Load() (*Config, error) {
 			WriteTimeout: getEnvDuration("SERVER_WRITE_TIMEOUT", 10*time.Second),
 			IdleTimeout:  getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second),
 		},
+		// ✅ eklendi — App Store Connect → Subscriptions → Shared Secret
+		AppleSharedSecret: getEnv("APPLE_SHARED_SECRET", ""),
 	}
 
-	// DATABASE_URL yoksa DB_PASSWORD zorunlu
 	if cfg.DB.URL == "" && cfg.DB.Password == "" {
 		panic("DATABASE_URL veya DB_PASSWORD set edilmeli")
 	}
 
 	return cfg, nil
 }
+
+// --- helpers ---
 
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {

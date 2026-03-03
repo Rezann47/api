@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_expires_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_premium_transaction VARCHAR(255);

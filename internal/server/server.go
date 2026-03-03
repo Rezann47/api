@@ -21,7 +21,7 @@ type Server struct {
 }
 
 func New(cfg *config.Config, log *zap.Logger) (*Server, error) {
-	// 1. DB bağlantısı (kodun mevcut kısmı)
+	// 1. DB bağlantısı
 	db, err := database.Connect(&cfg.DB, cfg.App.Env)
 	if err != nil {
 		return nil, fmt.Errorf("db connect: %w", err)
@@ -36,12 +36,15 @@ func New(cfg *config.Config, log *zap.Logger) (*Server, error) {
 	pomodoroRepo := repository.NewPomodoroRepository(db)
 	examResultRepo := repository.NewExamResultRepository(db)
 	instructorRepo := repository.NewInstructorStudentRepository(db)
-	// --- BURAYI EKLE ---
 	studyPlanRepo := repository.NewStudyPlanRepository(db)
+	msgRepo := repository.NewMessageRepository(db)
 
 	// 3. Services
 	authSvc := service.NewAuthService(userRepo, tokenRepo, cfg.JWT, log)
-	userSvc := service.NewUserService(userRepo, log)
+
+	// ✅ AppleSharedSecret eklendi
+	userSvc := service.NewUserService(userRepo, log, cfg.AppleSharedSecret)
+
 	subjectSvc := service.NewSubjectService(subjectRepo, topicRepo, progressRepo, log)
 	pomodoroSvc := service.NewPomodoroService(pomodoroRepo, log)
 	examSvc := service.NewExamResultService(examResultRepo, log)
@@ -49,15 +52,11 @@ func New(cfg *config.Config, log *zap.Logger) (*Server, error) {
 		instructorRepo, userRepo, pomodoroRepo,
 		progressRepo, subjectRepo, examResultRepo, log,
 	)
-	// --- BURAYI EKLE ---
 	studyPlanSvc := service.NewStudyPlanService(studyPlanRepo, log)
-
 	streakSvc := service.NewStreakService(db)
+	messageSvc := service.NewMessageService(msgRepo, instructorRepo, log)
 
-	msgRepo := repository.NewMessageRepository(db)                        // ← EKLE
-	messageSvc := service.NewMessageService(msgRepo, instructorRepo, log) // ← EKLE
 	// 4. Handlers & Router
-	// --- studyPlanSvc ARGÜMANINI EN SONA EKLE ---
 	handlers := handler.NewHandlers(
 		authSvc,
 		userSvc,
@@ -71,8 +70,6 @@ func New(cfg *config.Config, log *zap.Logger) (*Server, error) {
 	)
 
 	router := handler.NewRouter(handlers, cfg.JWT)
-
-	// ... geri kalan kısımlar aynı ...
 	router.Use(middleware.Logger(log))
 
 	srv := &http.Server{

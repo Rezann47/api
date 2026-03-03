@@ -7,16 +7,17 @@ import (
 )
 
 type UserRes struct {
-	ID          uuid.UUID  `json:"id"`
-	Name        string     `json:"name"`
-	Email       string     `json:"email"`
-	Role        string     `json:"role"`
-	StudentCode *string    `json:"student_code,omitempty"`
-	IsPremium   bool       `json:"is_premium"`
-	AvatarID    int16      `json:"avatar_id"`
-	LastSeenAt  *time.Time `json:"last_seen_at"`
-	IsOnline    bool       `json:"is_online"`
-	CreatedAt   time.Time  `json:"created_at"`
+	ID               uuid.UUID  `json:"id"`
+	Name             string     `json:"name"`
+	Email            string     `json:"email"`
+	Role             string     `json:"role"`
+	StudentCode      *string    `json:"student_code,omitempty"`
+	IsPremium        bool       `json:"is_premium"`
+	AvatarID         int16      `json:"avatar_id"`
+	LastSeenAt       *time.Time `json:"last_seen_at"`
+	IsOnline         bool       `json:"is_online"`
+	CreatedAt        time.Time  `json:"created_at"`
+	PremiumExpiresAt *time.Time `json:"premium_expires_at,omitempty"`
 }
 
 type UpdateProfileReq struct {
@@ -30,5 +31,18 @@ type ChangePasswordReq struct {
 }
 
 type PremiumStatusRes struct {
-	IsPremium bool `json:"is_premium"`
+	IsPremium        bool       `json:"is_premium"`
+	PremiumExpiresAt *time.Time `json:"premium_expires_at,omitempty"`
+}
+
+type ActivatePremiumReq struct {
+	TransactionID string     `json:"transaction_id"`
+	ProductID     string     `json:"product_id"`
+	Platform      string     `json:"platform"`
+	ExpiresDate   *time.Time `json:"expires_date,omitempty"`
+	ReceiptData   string     `json:"receipt_data"` // ✅ eklendi
+
+}
+type DeleteAccountReq struct {
+	Password string `json:"password" binding:"required"`
 }

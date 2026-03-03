@@ -64,6 +64,8 @@ func NewRouter(h *Handlers, cfg config.JWTConfig) *gin.Engine {
 	{
 		users.GET("/me", h.User.GetProfile)
 		users.PATCH("/me", h.User.UpdateProfile)
+		users.DELETE("/me", h.User.DeleteAccount) // ← ekle
+
 		users.POST("/me/change-password", h.User.ChangePassword)
 		users.GET("/me/premium", h.User.GetPremiumStatus)
 		users.POST("/me/premium/activate", h.User.ActivatePremium)

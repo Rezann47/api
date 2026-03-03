@@ -15,22 +15,23 @@ const (
 )
 
 type User struct {
-	ID           uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
-	Name         string         `gorm:"type:varchar(100);not null"`
-	Email        string         `gorm:"type:citext;not null"`
-	PasswordHash string         `gorm:"type:varchar(255);not null"`
-	Role         Role           `gorm:"type:user_role;not null;default:'student'"`
-	StudentCode  *string        `gorm:"type:varchar(20)"`
-	IsPremium    bool           `gorm:"not null;default:false"`
-	IsActive     bool           `gorm:"not null;default:true"`
-	AvatarID     int16          `gorm:"not null;default:1"`
-	LastSeenAt   *time.Time     `gorm:"index"`
-	CreatedAt    time.Time      `gorm:"not null;autoCreateTime"`
-	UpdatedAt    time.Time      `gorm:"not null;autoUpdateTime"`
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	ID                     uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	Name                   string         `gorm:"type:varchar(100);not null"`
+	Email                  string         `gorm:"type:citext;not null"`
+	PasswordHash           string         `gorm:"type:varchar(255);not null"`
+	Role                   Role           `gorm:"type:user_role;not null;default:'student'"`
+	StudentCode            *string        `gorm:"type:varchar(20)"`
+	IsPremium              bool           `gorm:"not null;default:false"`
+	PremiumExpiresAt       *time.Time     `gorm:"index"`
+	LastPremiumTransaction string         `gorm:"type:varchar(255)"`
+	IsActive               bool           `gorm:"not null;default:true"`
+	AvatarID               int16          `gorm:"not null;default:1"`
+	LastSeenAt             *time.Time     `gorm:"index"`
+	CreatedAt              time.Time      `gorm:"not null;autoCreateTime"`
+	UpdatedAt              time.Time      `gorm:"not null;autoUpdateTime"`
+	DeletedAt              gorm.DeletedAt `gorm:"index"`
 }
 
-// Son 3 dakika içinde ping attıysa aktif sayılır
 func (u *User) IsOnline() bool {
 	if u.LastSeenAt == nil {
 		return false
